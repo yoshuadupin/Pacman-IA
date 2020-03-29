@@ -3,10 +3,84 @@ from pacman_map import *
 import random
 import pygame
 pygame.init() # Si utilizza pygame per la riproduzione dei suoni
+import tensorflow as tf
+from tensorflow import keras
+import numpy as np
+import matplotlib.pyplot as plt
+import re
+ftrain = open('training.txt' , 'r')
+flabel = open('label.txt' , 'r')
+class_names=['abajo' ,'arriba' , 'izquierda' , 'derecha']
+set = re.split('\n' , ftrain.read())
+label = re.split('\n' , flabel.read())
+
+temp=[]
+trainSet=[]
+labelSet=[]
+for a in set:
+    temp.append(re.split('\s', a))
+for i in range(len(temp)-1):
+    temp1 = []
+    for j in range(len(temp[i])):
+        if j==len(temp[i])-1:
+            temp1.append(int(float(temp[i][j])))
+        else:
+            temp1.append(int(temp[i][j]))
+    trainSet.append(temp1)
+
+temp=[]
+for b in label:
+    temp.append(re.split('\s', b))
+for i in range(len(temp)-1):
+    temp1 = []
+    for j in range(len(temp[i])):
+        temp1.append(int(temp[i][j]))
+    labelSet.append(temp1)
+
+print(labelSet)
+
+ftrain.close()
+flabel.close()
+
+model  = tf.keras.Sequential()
+
+#posicion del fantasma neuronas X y Y 
+#distancia de los fantasma y distancia  posicion de pacman
+#y cuatro neuronas mas de la direccion
+#2 neuronas de salida para decidir que direccion tomar
+model.add(keras.layers.Dense(13 ,activation="relu" ))
+model.add(keras.layers.Dense(4 , activation="sigmoid"))
+model.compile(optimizer="adam" , loss="binary_crossentropy" , metrics=["accuracy"])
+
+#model.fit(trainSet , labelSet , epochs=5)
+
+#import numpy as np
+#data = np.random.random((1000, 13))
+#labels = np.random.randint(2, size=(1000, 2))
+
+# Train the model, iterating on the data in batches of 32 samples
+model.fit(trainSet, labelSet, epochs=10, batch_size=1)
+x_test = np.random.randint(272, size=(100, 13))
+y_test = np.random.randint(2, size=(100, 4))
+
+
+def predecirMovimiento(p):
+    results = model.predict(p)
+    movimiento=class_names[np.argmax(results[0])]
+    print(movimiento)
+    if movimiento=="abajo":
+        return (0,2)
+    elif movimiento=="arriba":
+        return (0,-2)
+    elif  movimiento=="izquierda" :
+        return (-2,0)       
+    elif movimiento=="derecha":
+        return (2,0)
 
 ## Costanti
 FRAME_RATE = 30
 trainingSet = []
+labelSet = []
 
 class PacmanArena(Arena):
 
@@ -329,30 +403,50 @@ class Ghost(Actor):
                         dist_min = distances[i]
                         dir_min = i
                 self._dir = dirs[dir_min]
+                
+        
                 dirRP = dirs[dir_min]
                 distRP = dist_min
                   #CODIGO PROPIO
-                if self._color ==1 and dirRP[0] != dirRP[1]:
+                if self._color ==0 and dirRP[0] != dirRP[1]:
                     vectorInput = []
+                    vectorOutput = []
                     for a in self._arena.actors():
                         if isinstance(a , Ghost) or isinstance(a , PacMan):
                             xts, yts, wts, hts = a.rect()
                             vectorInput.append(xts)
                             vectorInput.append(yts)
                     #armando vector
-                    vectorInput.append(dirRP[0])
-                    vectorInput.append(dirRP[1])
+                    # abajo , arriba , izquierda , derecha
+                    if dirRP[0]==0 and dirRP[1] ==2:
+                        labelSet.append([1,0,0,0])                    
+                    elif dirRP[0]==0 and dirRP[1] ==-2:
+                        labelSet.append([0,1,0,0])                    
+                    elif dirRP[0]==-2 and dirRP[1] ==0:
+                        labelSet.append([0,0,1,0])                    
+                    elif dirRP[0]==2 and dirRP[1] ==0:
+                        labelSet.append([0,0,0,1])                    
+                    
+                    
                     vectorInput.append(dist)
-                    print(len(vectorInput))
-                    print(vectorInput)    
+                    trainingSet.append(vectorInput)
+                    if self._color== 0:
+                        self._dir=predecirMovimiento(trainSet)
+
+                         
+
                 #####################
-
-
         ## Infine si effettua lo spostamento
-      
-       
-        self._x += self._dir[0]
-        self._y += self._dir[1]
+            self._x += self._dir[0]
+            self._y += self._dir[1]
+
+
+    def obtenerTrain(self):
+        return trainingSet 
+
+    def obtenerLabel(self):
+        return labelSet
+
     def symbol(self):
         # Status -1
         if self._status == -1:

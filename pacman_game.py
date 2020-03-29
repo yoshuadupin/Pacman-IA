@@ -74,6 +74,8 @@ while playing:
         if arena.playing() == 1:
             msg = font.render("YOU WIN", True, (255, 255, 0))
             screen.blit(msg, (88, 136))
+           
+                    
         elif arena.playing() == 2:
             msg = font.render("GAME OVER", True, (255, 0, 0))
             screen.blit(msg, (80, 136))
@@ -83,3 +85,16 @@ while playing:
     pygame.display.flip()
     clock.tick(FRAME_RATE)
 if esc: pygame.quit()
+for a in arena.actors():
+    if isinstance(a , Ghost):
+        f = open('training.txt' , 'a')
+        for tuplas in  a.obtenerTrain():
+            listToStr = ' '.join(map(str, tuplas)) 
+            f.write(listToStr+"\n")
+        f.close
+        fs = open('label.txt' , 'a')
+        for tuplas in  a.obtenerLabel():
+            listToStr = ' '.join(map(str, tuplas)) 
+            fs.write(listToStr+"\n")
+        fs.close
+        break
